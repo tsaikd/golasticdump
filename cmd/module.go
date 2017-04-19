@@ -33,6 +33,24 @@ var (
 		Usage:   "Load number per operation",
 		EnvVar:  "GOESDUMP_SCROLL",
 	}
+	flagBulkActions = &cobrather.Int64Flag{
+		Name:    "bulkactions",
+		Default: 0,
+		Usage:   "Bulk process document numbers per operation, 0 will use config of scroll",
+		EnvVar:  "GOESDUMP_BULK_ACTIONS",
+	}
+	flagBulkSize = &cobrather.Int64Flag{
+		Name:    "bulksize",
+		Default: 2,
+		Usage:   "Bulk process document size per operation, unit: MB",
+		EnvVar:  "GOESDUMP_BULK_SIZE",
+	}
+	flagBulkFlushInterval = &cobrather.Int64Flag{
+		Name:    "bulkflush",
+		Default: 30,
+		Usage:   "Bulk process flush interval, unit: Second",
+		EnvVar:  "GOESDUMP_BULK_FLUSH",
+	}
 	flagDelete = &cobrather.BoolFlag{
 		Name:    "delete",
 		Default: false,
@@ -58,6 +76,9 @@ var Module = &cobrather.Module{
 		flagInput,
 		flagOutput,
 		flagScroll,
+		flagBulkActions,
+		flagBulkSize,
+		flagBulkFlushInterval,
 		flagDelete,
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -70,16 +91,22 @@ var Module = &cobrather.Module{
 			return ErrEmptyConfig1.New(nil, flagOutput.Name)
 		}
 
+		scroll := int(flagScroll.Int64())
+		bulkActions := int(flagBulkActions.Int64())
+		if bulkActions < 1 {
+			bulkActions = scroll
+		}
+
 		return esdump.ElasticDump(esdump.Options{
 			Debug:              flagDebug.Bool(),
 			InputElasticURL:    inputElasticURL,
 			InputElasticSniff:  false,
 			OutputElasticURL:   outputElasticURL,
 			OutputElasticSniff: false,
-			ScrollSize:         int(flagScroll.Int64()),
-			BulkActions:        int(flagScroll.Int64()),
-			BulkSize:           2 << 20, // 2 MB
-			BulkFlushInterval:  30 * time.Second,
+			ScrollSize:         scroll,
+			BulkActions:        bulkActions,
+			BulkSize:           int(flagBulkSize.Int64()) << 20, // 2 MB
+			BulkFlushInterval:  time.Duration(flagBulkFlushInterval.Int64()) * time.Second,
 			Delete:             flagDelete.Bool(),
 		})
 	},
