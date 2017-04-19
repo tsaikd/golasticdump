@@ -8,4 +8,4 @@ ADD https://github.com/tsaikd/golasticdump/releases/download/${GOLASTICDUMP_VERS
 
 RUN chmod +x /usr/local/bin/golasticdump
 
-CMD ["golasticdump"]
+ENTRYPOINT ["golasticdump"]
