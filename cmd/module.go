@@ -77,7 +77,7 @@ var Module = &cobrather.Module{
 			OutputElasticURL:   outputElasticURL,
 			OutputElasticSniff: false,
 			ScrollSize:         int(flagScroll.Int64()),
-			BulkActions:        1000,
+			BulkActions:        int(flagScroll.Int64()),
 			BulkSize:           2 << 20, // 2 MB
 			BulkFlushInterval:  30 * time.Second,
 			Delete:             flagDelete.Bool(),
