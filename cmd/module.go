@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -81,7 +82,7 @@ var Module = &cobrather.Module{
 		flagBulkFlushInterval,
 		flagDelete,
 	},
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(ctx context.Context, cmd *cobra.Command, args []string) error {
 		inputElasticURL := flagInput.String()
 		if inputElasticURL == "" {
 			return ErrEmptyConfig1.New(nil, flagInput.Name)
