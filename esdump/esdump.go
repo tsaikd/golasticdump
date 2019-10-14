@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	pb "gopkg.in/cheggaaa/pb.v1"
 	elastic "gopkg.in/olivere/elastic.v5"
