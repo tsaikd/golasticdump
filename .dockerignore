@@ -1,10 +1,10 @@
-# /.*
-# !/.git
+/.*
+!/.git
 /.vscode/
-# /docker/
+/docker/
 /vendor/
 /golasticdump
-# /*.md
+/*.md
 
 .DS_Store
 .idea
