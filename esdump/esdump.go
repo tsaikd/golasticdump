@@ -18,12 +18,19 @@ type elasticMessage struct {
 	elastic.SearchHit
 }
 
+type AuthOptions struct {
+	BasicUsername string
+	BasicPassword string
+}
+
 // Options used with ElasticDump
 type Options struct {
 	Debug              bool
 	InputElasticURL    string
+	InputBasicAuth     AuthOptions
 	InputElasticSniff  bool
 	OutputElasticURL   string
+	OutputBasicAuth    AuthOptions
 	OutputElasticSniff bool
 	ScrollSize         int
 	BulkActions        int
@@ -45,6 +52,7 @@ func ElasticDump(opt Options) (err error) {
 	inputClient, err := elastic.NewClient(
 		elastic.SetURL(inputElasticURL),
 		elastic.SetSniff(opt.InputElasticSniff),
+		elastic.SetBasicAuth(opt.InputBasicAuth.BasicUsername, opt.InputBasicAuth.BasicPassword),
 	)
 	if err != nil {
 		return
@@ -57,6 +65,7 @@ func ElasticDump(opt Options) (err error) {
 	outputClient, err := elastic.NewClient(
 		elastic.SetURL(outputElasticURL),
 		elastic.SetSniff(opt.OutputElasticSniff),
+		elastic.SetBasicAuth(opt.OutputBasicAuth.BasicUsername, opt.OutputBasicAuth.BasicPassword),
 	)
 	if err != nil {
 		return
