@@ -23,10 +23,30 @@ var (
 		Usage:  "Source elastic URL, e.g. http://localhost:9200 or http://localhost:9200/index-*",
 		EnvVar: "GOESDUMP_INPUT",
 	}
+	flagInputBasicAuthUsername = &cobrather.StringFlag{
+		Name:   "inputBasicUsername",
+		Usage:  "Source elastic username, eg elastic",
+		EnvVar: "GOESDUMP_INPUT_AUTH_USERNAME",
+	}
+	flagInputBasicAuthPassword = &cobrather.StringFlag{
+		Name:   "inputBasicPassword",
+		Usage:  "Source elastic password, eg elastic",
+		EnvVar: "GOESDUMP_INPUT_AUTH_PASSWORD",
+	}
 	flagOutput = &cobrather.StringFlag{
 		Name:   "output",
 		Usage:  "Destination elastic URL, e.g. http://localhost:9200 or http://localhost:9200/copy-index",
 		EnvVar: "GOESDUMP_OUTPUT",
+	}
+	flagOutputBasicAuthUsername = &cobrather.StringFlag{
+		Name:   "outputBasicUsername",
+		Usage:  "Destination elastic username, eg elastic",
+		EnvVar: "GOESDUMP_OUTPUT_AUTH_USERNAME",
+	}
+	flagOutputBasicAuthPassword = &cobrather.StringFlag{
+		Name:   "outputBasicPassword",
+		Usage:  "Destination elastic password, eg elastic",
+		EnvVar: "GOESDUMP_OUTPUT_AUTH_PASSWORD",
 	}
 	flagScroll = &cobrather.Int64Flag{
 		Name:    "scroll",
@@ -75,7 +95,11 @@ var Module = &cobrather.Module{
 	Flags: []cobrather.Flag{
 		flagDebug,
 		flagInput,
+		flagInputBasicAuthUsername,
+		flagInputBasicAuthPassword,
 		flagOutput,
+		flagOutputBasicAuthUsername,
+		flagOutputBasicAuthPassword,
 		flagScroll,
 		flagBulkActions,
 		flagBulkSize,
@@ -101,8 +125,10 @@ var Module = &cobrather.Module{
 		return esdump.ElasticDump(esdump.Options{
 			Debug:              flagDebug.Bool(),
 			InputElasticURL:    inputElasticURL,
+			InputBasicAuth:     esdump.AuthOptions{BasicUsername: flagInputBasicAuthUsername.String(), BasicPassword: flagInputBasicAuthPassword.String()},
 			InputElasticSniff:  false,
 			OutputElasticURL:   outputElasticURL,
+			OutputBasicAuth:    esdump.AuthOptions{BasicUsername: flagOutputBasicAuthUsername.String(), BasicPassword: flagOutputBasicAuthPassword.String()},
 			OutputElasticSniff: false,
 			ScrollSize:         scroll,
 			BulkActions:        bulkActions,
