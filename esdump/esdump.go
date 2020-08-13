@@ -221,27 +221,21 @@ func setDataFile(
 	outputFile *os.File,
 ) (err error) {
 	defer func() {
-		logger.Debug("setData defer with err: ", err)
+		logger.Debug("setDataFile defer with err: ", err)
 	}()
 	for hit := range hits {
 		index := hit.Index
 
-		logger.Debugf("setData index:%q type:%q id:%q", index, hit.Type, hit.Id)
+		logger.Debugf("setDataFile index:%q type:%q id:%q", index, hit.Type, hit.Id)
 
 		mar, err := json.Marshal(hit)
 		if err != nil {
 			return err
 		}
 
-		n, err := outputFile.Write(mar)
+		_, err = outputFile.Write(mar)
 		if err != nil {
 			return err
-		}
-		if n < len(mar) {
-			_, err := outputFile.Write(mar)
-			if err != nil {
-				return err
-			}
 		}
 		outputFile.WriteString("\n")
 
