@@ -2,6 +2,8 @@ package esdump
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/url"
 	"os"
@@ -45,9 +47,12 @@ func ElasticDump(opt Options) (err error) {
 		logger.Level = logrus.DebugLevel
 	}
 
-	inputElasticURL, inputElasticIndexName, err := parseElasticURL(opt.InputElasticURL)
+	inputElasticURL, inputElasticIndexName, isInputFile, err := parseElasticURL(opt.InputElasticURL)
 	if err != nil {
 		return
+	}
+	if isInputFile {
+		return fmt.Errorf(`file input not suported`)
 	}
 	inputClient, err := elastic.NewClient(
 		elastic.SetURL(inputElasticURL),
@@ -58,17 +63,28 @@ func ElasticDump(opt Options) (err error) {
 		return
 	}
 
-	outputElasticURL, outputElasticIndexName, err := parseElasticURL(opt.OutputElasticURL)
+	outputElasticURL, outputElasticIndexName, isOutputFile, err := parseElasticURL(opt.OutputElasticURL)
 	if err != nil {
 		return
 	}
-	outputClient, err := elastic.NewClient(
-		elastic.SetURL(outputElasticURL),
-		elastic.SetSniff(opt.OutputElasticSniff),
-		elastic.SetBasicAuth(opt.OutputBasicAuth.BasicUsername, opt.OutputBasicAuth.BasicPassword),
-	)
-	if err != nil {
-		return
+
+	var outputClient *elastic.Client
+	var outputFile *os.File
+
+	if isOutputFile {
+		outputFile, err = os.OpenFile(outputElasticIndexName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm)
+		if err != nil {
+			return
+		}
+	} else {
+		outputClient, err = elastic.NewClient(
+			elastic.SetURL(outputElasticURL),
+			elastic.SetSniff(opt.OutputElasticSniff),
+			elastic.SetBasicAuth(opt.OutputBasicAuth.BasicUsername, opt.OutputBasicAuth.BasicPassword),
+		)
+		if err != nil {
+			return
+		}
 	}
 
 	ctx := context.Background()
@@ -97,6 +113,13 @@ func ElasticDump(opt Options) (err error) {
 	savedHits := make(chan elasticMessage, opt.ScrollSize)
 	g.Go(func() error {
 		defer close(savedHits)
+
+		if isOutputFile {
+			if err2 := setDataFile(ctx, hits, savedHits, outputFile); err2 != nil {
+				return err2
+			}
+			return nil
+		}
 
 		outputBulkProcess, err2 := outputClient.BulkProcessor().
 			Name("golasticdump-output").
@@ -143,16 +166,19 @@ func ElasticDump(opt Options) (err error) {
 	return
 }
 
-func parseElasticURL(esurl string) (entrypoint string, indexName string, err error) {
+func parseElasticURL(esurl string) (entrypoint string, indexName string, isFile bool, err error) {
 	u, err := url.Parse(esurl)
 	if err != nil {
 		return
+	}
+	if u.Scheme == "" {
+		return esurl, esurl, true, nil
 	}
 
 	indexName = strings.TrimLeft(u.Path, "/")
 	u.Path = ""
 
-	return u.String(), indexName, nil
+	return u.String(), indexName, false, nil
 }
 
 func getData(
@@ -186,6 +212,49 @@ func getData(
 			}
 		}
 	}
+}
+
+func setDataFile(
+	ctx context.Context,
+	hits <-chan elasticMessage,
+	savedHits chan<- elasticMessage,
+	outputFile *os.File,
+) (err error) {
+	defer func() {
+		logger.Debug("setData defer with err: ", err)
+	}()
+	for hit := range hits {
+		index := hit.Index
+
+		logger.Debugf("setData index:%q type:%q id:%q", index, hit.Type, hit.Id)
+
+		mar, err := json.Marshal(hit)
+		if err != nil {
+			return err
+		}
+
+		n, err := outputFile.Write(mar)
+		if err != nil {
+			return err
+		}
+		if n < len(mar) {
+			_, err := outputFile.Write(mar)
+			if err != nil {
+				return err
+			}
+		}
+		outputFile.WriteString("\n")
+
+		// Check if we need to terminate early
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			savedHits <- hit
+		}
+	}
+	logger.Debug("setDataFile finish")
+	return nil
 }
 
 func setData(
