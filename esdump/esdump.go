@@ -224,27 +224,27 @@ func setDataFile(
 			logger.Debug("setDataFile err: ", err)
 		}
 	}()
-	for hit := range hits {
-		index := hit.Index
-
-		logger.Debugf("setDataFile index:%q type:%q id:%q", index, hit.Type, hit.Id)
-
-		mar, err := json.Marshal(hit)
-		if err != nil {
-			return err
-		}
-
-		_, err = outputFile.Write(mar)
-		if err != nil {
-			return err
-		}
-		outputFile.WriteString("\n")
-
-		// Check if we need to terminate early
+	encoder := json.NewEncoder(outputFile)
+	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		default:
+		case hit, ok := <-hits:
+			if !ok {
+				return nil
+			}
+
+			index := hit.Index
+
+			logger.Debugf("setDataFile index:%q type:%q id:%q", index, hit.Type, hit.Id)
+
+			if err = encoder.Encode(hit); err != nil {
+				return err
+			}
+			if _, err = outputFile.WriteString("\n"); err != nil {
+				return err
+			}
+
 			savedHits <- hit
 		}
 	}
