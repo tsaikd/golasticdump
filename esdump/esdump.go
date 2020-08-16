@@ -218,7 +218,11 @@ func setDataFile(
 	outputFile *os.File,
 ) (err error) {
 	defer func() {
-		logger.Debug("setDataFile defer with err: ", err)
+		if err == nil {
+			logger.Debug("setDataFile finish")
+		} else {
+			logger.Debug("setDataFile err: ", err)
+		}
 	}()
 	for hit := range hits {
 		index := hit.Index
