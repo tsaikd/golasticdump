@@ -115,10 +115,7 @@ func ElasticDump(opt Options) (err error) {
 		defer close(savedHits)
 
 		if isOutputFile {
-			if err2 := setDataFile(ctx, hits, savedHits, outputFile); err2 != nil {
-				return err2
-			}
-			return nil
+			return setDataFile(ctx, hits, savedHits, outputFile)
 		}
 
 		outputBulkProcess, err2 := outputClient.BulkProcessor().
