@@ -248,7 +248,6 @@ func setDataFile(
 			savedHits <- hit
 		}
 	}
-	logger.Debug("setDataFile finish")
 	return nil
 }
 
