@@ -169,7 +169,9 @@ func parseElasticURL(esurl string) (entrypoint string, indexName string, isFile 
 		return
 	}
 	if u.Scheme == "" {
-		return esurl, esurl, true, nil
+		return u.String(), esurl, true, nil
+	} else if u.Scheme == "file" {
+		return u.String(), u.Path, true, nil
 	}
 
 	indexName = strings.TrimLeft(u.Path, "/")

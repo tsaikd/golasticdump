@@ -35,5 +35,10 @@ func Test_parseElasticURL(t *testing.T) {
 		require.Equal("/var/dump/es/dump1.txt", name)
 		require.True(isFile)
 	}
+	if url, name, isFile, err := parseElasticURL("file:///var/dump/es/dump1.txt"); assert.NoError(err) {
+		require.Equal("file:///var/dump/es/dump1.txt", url)
+		require.Equal("/var/dump/es/dump1.txt", name)
+		require.True(isFile)
+	}
 
 }
