@@ -23,6 +23,13 @@ golasticdump \
 	--output="http://staging.es.com:9200/my_index"
 ```
 
+* Copy an index from production to file
+```
+golasticdump \
+	--input="http://production.es.com:9200/my_index" \
+	--output="my_index.dump"
+```
+
 * Copy indices
 ```
 golasticdump \
