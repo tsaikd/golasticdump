@@ -1,19 +1,22 @@
 package esdump
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	isatty "github.com/mattn/go-isatty"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	pb "gopkg.in/cheggaaa/pb.v1"
-	elastic "gopkg.in/olivere/elastic.v5"
+	elastic "gopkg.in/olivere/elastic.v6"
 )
 
 type elasticMessage struct {
@@ -39,6 +42,8 @@ type Options struct {
 	BulkSize           int
 	BulkFlushInterval  time.Duration
 	Delete             bool
+	Compress           bool
+	MaxRows            int64
 }
 
 // ElasticDump dump elastic data with Options
@@ -69,14 +74,8 @@ func ElasticDump(opt Options) (err error) {
 	}
 
 	var outputClient *elastic.Client
-	var outputFile *os.File
 
-	if isOutputFile {
-		outputFile, err = os.OpenFile(outputElasticIndexName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm)
-		if err != nil {
-			return
-		}
-	} else {
+	if !isOutputFile {
 		outputClient, err = elastic.NewClient(
 			elastic.SetURL(outputElasticURL),
 			elastic.SetSniff(opt.OutputElasticSniff),
@@ -97,8 +96,15 @@ func ElasticDump(opt Options) (err error) {
 	if err != nil {
 		return
 	}
-	bar := pb.New64(totalDoc).Start()
-	defer bar.Finish()
+	var bar *pb.ProgressBar
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		bar = pb.New64(totalDoc).Start()
+	}
+	defer func() {
+		if bar != nil {
+			bar.Finish()
+		}
+	}()
 
 	hits := make(chan elasticMessage, opt.ScrollSize)
 	g.Go(func() error {
@@ -115,7 +121,7 @@ func ElasticDump(opt Options) (err error) {
 		defer close(savedHits)
 
 		if isOutputFile {
-			return setDataFile(ctx, hits, savedHits, outputFile)
+			return setDataFile(ctx, hits, savedHits, outputElasticIndexName, opt.Compress, opt.MaxRows)
 		}
 
 		outputBulkProcess, err2 := outputClient.BulkProcessor().
@@ -217,7 +223,9 @@ func setDataFile(
 	ctx context.Context,
 	hits <-chan elasticMessage,
 	savedHits chan<- elasticMessage,
-	outputFile *os.File,
+	outputFileName string,
+	compress bool,
+	maxRows int64,
 ) (err error) {
 	defer func() {
 		if err == nil {
@@ -226,7 +234,35 @@ func setDataFile(
 			logger.Debug("setDataFile err: ", err)
 		}
 	}()
-	encoder := json.NewEncoder(outputFile)
+	var split int
+	var outputFile *os.File
+	getFileName := func(n int) string {
+		fileName := outputFileName
+		if maxRows > 0 {
+			ext := filepath.Ext(fileName)
+			fileName = fmt.Sprintf("%s.split-%d%s", outputFileName[:len(outputFileName)-len(ext)],
+				n, ext)
+		}
+		if compress {
+			fileName += ".gz"
+		}
+		return fileName
+	}
+	outputFile, err = os.Create(getFileName(split))
+	if err != nil {
+		return err
+	}
+	w := gzip.NewWriter(outputFile)
+	defer func() {
+		if w != nil {
+			w.Close()
+		}
+		if outputFile != nil {
+			outputFile.Close()
+		}
+	}()
+	encoder := json.NewEncoder(w)
+	var rows int64
 	for {
 		select {
 		case <-ctx.Done():
@@ -237,14 +273,29 @@ func setDataFile(
 			}
 
 			index := hit.Index
+			hit.Sort = nil
 
 			logger.Debugf("setDataFile index:%q type:%q id:%q", index, hit.Type, hit.Id)
 
 			if err = encoder.Encode(hit); err != nil {
 				return err
 			}
-			if _, err = outputFile.WriteString("\n"); err != nil {
-				return err
+			if maxRows > 0 {
+				rows++
+				if rows >= maxRows {
+					rows = 0
+					split++
+
+					w.Close()
+					w = nil
+					outputFile.Close()
+					outputFile, err = os.Create(getFileName(split))
+					if err != nil {
+						return err
+					}
+					w = gzip.NewWriter(outputFile)
+					encoder = json.NewEncoder(w)
+				}
 			}
 
 			savedHits <- hit
@@ -307,7 +358,9 @@ func delData(
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			bar.Increment()
+			if bar != nil {
+				bar.Increment()
+			}
 		}
 	}
 	logger.Debug("delData finish")
