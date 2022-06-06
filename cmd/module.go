@@ -78,6 +78,18 @@ var (
 		Usage:   "Delete source data after copy",
 		EnvVar:  "GOESDUMP_DELETE",
 	}
+	flagCompress = &cobrather.BoolFlag{
+		Name:    "compress",
+		Default: false,
+		Usage:   "gzip data before sending output to file.\nOn import the command is used to inflate a gzipped file",
+		EnvVar:  "GOESDUMP_COMPRESS",
+	}
+	flagMaxRows = &cobrather.Int64Flag{
+		Name:    "maxrows",
+		Default: 0,
+		Usage:   "supports file splitting. Files are split by the number of rows specified",
+		EnvVar:  "GOESDUMP_MAX_ROWS",
+	}
 )
 
 // errors
@@ -105,6 +117,8 @@ var Module = &cobrather.Module{
 		flagBulkSize,
 		flagBulkFlushInterval,
 		flagDelete,
+		flagCompress,
+		flagMaxRows,
 	},
 	RunE: func(ctx context.Context, cmd *cobra.Command, args []string) error {
 		inputElasticURL := flagInput.String()
@@ -135,6 +149,8 @@ var Module = &cobrather.Module{
 			BulkSize:           int(flagBulkSize.Int64()) << 20, // 2 MB
 			BulkFlushInterval:  time.Duration(flagBulkFlushInterval.Int64()) * time.Second,
 			Delete:             flagDelete.Bool(),
+			Compress:           flagCompress.Bool(),
+			MaxRows:            flagMaxRows.Int64(),
 		})
 	},
 }
