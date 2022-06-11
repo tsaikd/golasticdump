@@ -234,8 +234,12 @@ func setDataFile(
 			logger.Debug("setDataFile err: ", err)
 		}
 	}()
+
 	var split int
 	var outputFile *os.File
+	var w *gzip.Writer
+	var encoder *json.Encoder
+
 	getFileName := func(n int) string {
 		fileName := outputFileName
 		if maxRows > 0 {
@@ -248,20 +252,38 @@ func setDataFile(
 		}
 		return fileName
 	}
-	outputFile, err = os.Create(getFileName(split))
-	if err != nil {
-		return err
-	}
-	w := gzip.NewWriter(outputFile)
-	defer func() {
+	flushEncoder := func(done bool) error {
 		if w != nil {
 			w.Close()
+			w = nil
 		}
 		if outputFile != nil {
 			outputFile.Close()
+			outputFile = nil
 		}
+		if done {
+			return nil
+		}
+		outputFile, err = os.Create(getFileName(split))
+		if err != nil {
+			return err
+		}
+		if compress {
+			w = gzip.NewWriter(outputFile)
+			encoder = json.NewEncoder(w)
+		} else {
+			encoder = json.NewEncoder(outputFile)
+		}
+		return nil
+	}
+
+	err = flushEncoder(false)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		flushEncoder(true)
 	}()
-	encoder := json.NewEncoder(w)
 	var rows int64
 	for {
 		select {
@@ -285,16 +307,10 @@ func setDataFile(
 				if rows >= maxRows {
 					rows = 0
 					split++
-
-					w.Close()
-					w = nil
-					outputFile.Close()
-					outputFile, err = os.Create(getFileName(split))
+					err = flushEncoder(false)
 					if err != nil {
 						return err
 					}
-					w = gzip.NewWriter(outputFile)
-					encoder = json.NewEncoder(w)
 				}
 			}
 
