@@ -4,14 +4,9 @@ tool for moving elasticsearch data written in golang
 [![Build Status](https://travis-ci.org/tsaikd/golasticdump.svg?branch=master)](https://travis-ci.org/tsaikd/golasticdump)
 
 ## Install
-* with docker image
-	* [tsaikd/golasticdump](https://registry.hub.docker.com/u/tsaikd/golasticdump/)
-```
-docker pull tsaikd/golasticdump:0
-```
 * with source code and golang
 ```
-go get github.com/tsaikd/golasticdump
+go get github.com/tsaikd/golasticdump/v7@latest
 ```
 
 ## Examples

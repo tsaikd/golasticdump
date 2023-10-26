@@ -13,10 +13,10 @@ import (
 	"time"
 
 	isatty "github.com/mattn/go-isatty"
+	elastic "github.com/olivere/elastic/v7"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	pb "gopkg.in/cheggaaa/pb.v1"
-	elastic "gopkg.in/olivere/elastic.v6"
 )
 
 type elasticMessage struct {

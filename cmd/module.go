@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tsaikd/KDGoLib/cliutil/cobrather"
 	"github.com/tsaikd/KDGoLib/errutil"
-	"github.com/tsaikd/golasticdump/esdump"
+	"github.com/tsaikd/golasticdump/v7/esdump"
 )
 
 // command line flags
